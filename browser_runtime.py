@@ -174,10 +174,36 @@ def apply_browser_proxy_option(options, proxy):
         options.set_argument("--proxy-server", proxy)
 
 
+def _browser_window_size_argument():
+    """读取 browser_window_size 配置，返回 --window-size 启动参数；空配置返回空串。"""
+    raw = str(_config.get("browser_window_size", "") or "").strip()
+    if not raw:
+        return ""
+    parts = [part.strip() for part in raw.replace("x", ",").replace("X", ",").split(",")]
+    if len(parts) == 2 and all(part.isdigit() for part in parts):
+        return f"--window-size={parts[0]},{parts[1]}"
+    return ""
+
+
+def _apply_fork_browser_arguments(options):
+    """fork 本地浏览器参数：固定窗口尺寸 + 抑制首跑弹窗。
+
+    Edge 全新 profile 首次运行会弹同步确认对话框（小窗口）并抢占标签页焦点，
+    导致串行注册第 2 个起失败；--no-first-run/--disable-sync 予以抑制。
+    """
+    window_argument = _browser_window_size_argument()
+    if window_argument:
+        options.set_argument(window_argument)
+    options.set_argument("--no-first-run")
+    options.set_argument("--no-default-browser-check")
+    options.set_argument("--disable-sync")
+
+
 def create_browser_options(browser_proxy="", extension_path=None):
     options = ChromiumOptions()
     options.auto_port()
     options.set_timeouts(base=1)
+    _apply_fork_browser_arguments(options)  # fork-local
     apply_browser_proxy_option(options, browser_proxy)
     effective_extension = _resolve_extension_path(extension_path)
     if effective_extension:

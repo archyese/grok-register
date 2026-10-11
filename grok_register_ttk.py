@@ -939,7 +939,7 @@ class GrokRegisterGUI:
 
         add_label(0, 0, "邮箱服务商:")
         self.email_provider_var = tk.StringVar(value=config.get("email_provider", "duckmail"))
-        self.email_provider_combo = tk_option_menu(config_frame, self.email_provider_var, ["duckmail", "yyds", "cloudflare", "cloudmail", "outlook"], width=12)
+        self.email_provider_combo = tk_option_menu(config_frame, self.email_provider_var, ["duckmail", "yyds", "cloudflare", "cloudmail", "freemail", "outlook"], width=12)
         add_field(self.email_provider_combo, 0, 1, sticky=tk.W)
 
         add_label(0, 2, "注册数量:")
@@ -1172,6 +1172,16 @@ class GrokRegisterGUI:
             config_frame, text="管理 Outlook 邮箱池", command=self.manage_outlook_mailbox_pool
         )
         add_field(self.outlook_pool_btn, 22, 3, sticky=tk.W)
+
+        add_label(23, 0, "Freemail 域名:")
+        self.freemail_domain_var = tk.StringVar(value=str(config.get("freemail_domain", "")))
+        self.freemail_domain_entry = tk_entry(config_frame, textvariable=self.freemail_domain_var, width=34)
+        add_field(self.freemail_domain_entry, 23, 1)
+
+        add_label(23, 2, "Freemail Token:")
+        self.freemail_token_var = tk.StringVar(value=str(config.get("freemail_token", "")))
+        self.freemail_token_entry = tk_entry(config_frame, textvariable=self.freemail_token_var, width=34, show="*")
+        add_field(self.freemail_token_entry, 23, 3)
 
         btn_frame = tk.Frame(main_frame, bg=UI_BG)
         btn_frame.grid(row=1, column=0, sticky=tk.EW, pady=(0, 6))
@@ -1498,6 +1508,8 @@ class GrokRegisterGUI:
         config["duckmail_api_key"] = self.api_key_var.get().strip()
         config["yyds_api_key"] = self.yyds_api_key_var.get().strip()
         config["yyds_jwt"] = self.yyds_jwt_var.get().strip()
+        config["freemail_domain"] = self.freemail_domain_var.get().strip()
+        config["freemail_token"] = self.freemail_token_var.get().strip()
         config["cloudflare_api_base"] = self.cloudflare_api_base_var.get().strip()
         config["cloudflare_api_key"] = self.cloudflare_api_key_var.get().strip()
         config["cloudflare_auth_mode"] = self.cloudflare_auth_mode_var.get().strip() or "none"

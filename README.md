@@ -4,7 +4,7 @@
 
 <p><strong>简体中文</strong> | <a href="README.en.md">English</a></p>
 
-Grok Register 是基于 Python 和 Chromium 的注册自动化工具，提供 GUI、CLI、WebUI、五种邮箱来源、可选并发与代理池，并支持 SSO 风控、账号持久化、pending 恢复、grok2api 入池和 CPA/OIDC 导出。
+Grok Register 是基于 Python 和 Chromium 的注册自动化工具，提供 GUI、CLI、WebUI、六种邮箱来源、可选并发与代理池，并支持 SSO 风控、账号持久化、pending 恢复、grok2api 入池和 CPA/OIDC 导出。
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
@@ -100,7 +100,7 @@ Grok Register 使用真实 Chromium / Chrome 完成注册流程，并把 GUI、C
 主要功能：
 
 - 自动打开注册页、提交邮箱、轮询验证码、填写资料并获取 SSO cookie。
-- 支持 **DuckMail / YYDS / Cloudflare 临时邮箱 / Cloud Mail / Outlook 邮箱池** 五种邮箱来源。
+- 支持 **DuckMail / YYDS / Cloudflare 临时邮箱 / Cloud Mail / Freemail / Outlook 邮箱池** 六种邮箱来源。
 - 支持 **GUI / CLI / WebUI** 三种操作入口。
 - 支持可选 **1–8 线程并发注册**；默认关闭。
 - 支持 `direct / single / pool` 代理模式、健康检查、冷却、订阅、固定/旋转节点和账号级稳定 Proxy Lease。
@@ -256,7 +256,7 @@ CLI 读取 `config.json`，通过校验后提示：
 
 | 配置项 | 说明 |
 | --- | --- |
-| `email_provider` | `duckmail` / `yyds` / `cloudflare` / `cloudmail` / `outlook` |
+| `email_provider` | `duckmail` / `yyds` / `cloudflare` / `cloudmail` / `freemail` / `outlook` |
 | `register_count` | 本批次注册数量 |
 | `enable_nsfw` | 注册后是否尝试开启 NSFW |
 | `sso_risk_gate_enabled` | 入库前是否检查 grok.com `botFlagSource` / `policy=deny`，默认 `true` |
@@ -378,6 +378,21 @@ Cloud Mail 的 Public Token 直接放在 `Authorization` 请求头中，不需�
 程序会在当前注册 slot / Proxy Lease 建立后、浏览器启动前使用同一个网络出口检查 Cloud Mail 鉴权。若遇到 `401 token验证失败`，会在同一出口内等待约 70 秒让 Workers KV 收敛，不会切换代理、自动生成新 token 或尝试其它鉴权格式。
 
 如果等待窗口结束后仍持续返回 401，请检查 `cloudmail_api_base`、Public Token，以及 Cloud Mail Worker 实际绑定的 KV namespace 是否属于同一部署实例；不要连续重复生成 token。错误日志只记录 token 长度和 SHA-256 短指纹，不会输出完整 Public Token。
+
+#### Freemail 临时邮箱
+
+使用自部署 freemail 服务的 `/api/generate` 接口创建临时邮箱，并用邮箱地址轮询 `/api/emails` 收件箱；`freemail_domain` 支持裸域名（自动使用 `https://`）或完整 http/https 地址。
+
+```json
+{
+  "email_provider": "freemail",
+  "freemail_domain": "mail.example.com",
+  "freemail_token": "你的 Bearer Token"
+}
+```
+
+- 验证码优先从邮件主题/正文提取；列表返回的 `verification_code` 字段作为回退。
+- 正文通过 `/api/email/{id}/download` 下载原始 EML 并解析。
 
 ## 代理与代理池
 
@@ -553,7 +568,7 @@ python grok_register_ttk.py retry-pending <pending文件> [输出文件]
 ├── proxy_bridge.py            # HTTP/HTTPS/SOCKS → localhost HTTP 代理桥与 Chromium 兼容
 ├── proxy_protocols.py         # HTTP/SOCKS/VLESS/VMess/Trojan/HY2/TUIC/SS 订阅解析
 ├── proxy_protocol_runtime.py  # Native bridge / sing-box lazy runtime 与 idle cache
-├── mail_service.py            # 四种临时邮箱服务
+├── mail_service.py            # 五种临时邮箱服务
 ├── app_config.py              # 默认配置、校验、加载与保存
 ├── account_outputs.py         # 账号、pending 与 token 输出
 ├── sso_risk.py                # SSO 风控筛查与隔离

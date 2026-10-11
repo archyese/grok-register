@@ -50,6 +50,10 @@ DEFAULT_CONFIG = {
     "multi_thread_enabled": False,
     "multi_thread_workers": 4,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    # ==== fork-local 扩展键（集中存放，降低与上游的合并冲突面）====
+    "freemail_domain": "",
+    "freemail_token": "",
+    "browser_window_size": "",
     "grok2api_auto_add_local": False,
     "grok2api_local_token_file": "",
     "grok2api_pool_name": "ssoBasic",
@@ -162,11 +166,14 @@ def validate_config_structure(raw):
         "proxy_pool_probe_provider": {"cloudflare", "ipinfo"},
         "proxy_protocol_backend": {"auto", "sing-box", "native-only"},
     }
+    enums["email_provider"].add("freemail")  # fork-local: freemail 邮箱来源
     for key, allowed in enums.items():
         value = cfg.get(key, DEFAULT_CONFIG.get(key, ""))
         if value not in allowed:
             raise ConfigError(f"配置项 {key} 的值无效: {value!r}; 允许值: {sorted(allowed)}")
         cfg[key] = value
+
+    _validate_fork_browser_window_size(cfg)
 
     api_path_keys = {
         "cloudflare_path_domains", "cloudflare_path_accounts",
@@ -211,6 +218,7 @@ def validate_run_requirements(cfg):
         ]
         if missing:
             raise ConfigError("Cloud Mail 模式缺少必需配置: " + ", ".join(missing))
+    _validate_fork_freemail_requirements(cfg, provider)
     if provider == "yyds" and not (cfg["yyds_api_key"] or cfg["yyds_jwt"]):
         raise ConfigError("YYDS 模式需要至少配置 yyds_api_key 或 yyds_jwt")
     if provider == "outlook":
@@ -316,3 +324,36 @@ def save_config():
             except Exception:
                 pass
     return config
+
+
+# ==== fork-local 验证辅助（统一追加在文件末尾，降低与上游的合并冲突面） ====
+
+
+def _validate_fork_browser_window_size(cfg):
+    """校验 browser_window_size：空 或 宽,高 / 宽x高（200–10000）。"""
+    window_size = str(cfg.get("browser_window_size", "") or "").strip()
+    if not window_size:
+        return
+    parts = [p.strip() for p in window_size.replace("x", ",").replace("X", ",").split(",")]
+    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+        raise ConfigError("配置项 browser_window_size 格式应为 宽,高（如 1280,860）")
+    if not (200 <= int(parts[0]) <= 10000 and 200 <= int(parts[1]) <= 10000):
+        raise ConfigError("配置项 browser_window_size 数值超出合理范围（200–10000）")
+
+
+def _validate_fork_freemail_requirements(cfg, provider):
+    """freemail 邮箱来源的运行前必需配置校验。"""
+    if provider != "freemail":
+        return
+    missing = [key for key in ("freemail_domain", "freemail_token") if not cfg[key]]
+    if missing:
+        raise ConfigError("Freemail 模式缺少必需配置: " + ", ".join(missing))
+    domain = cfg["freemail_domain"].rstrip("/")
+    if "://" in domain:
+        parsed = urllib.parse.urlsplit(domain)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            raise ConfigError("配置项 freemail_domain 必须是 http/https URL 或裸域名")
+    elif "/" in domain:
+        raise ConfigError(
+            "配置项 freemail_domain 应为裸域名（如 mail.example.com）或完整 http/https URL"
+        )

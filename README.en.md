@@ -4,7 +4,7 @@
 
 <p><a href="README.md">简体中文</a> | <strong>English</strong></p>
 
-Grok Register is a Python-and-Chromium registration automation tool with GUI, CLI, and WebUI interfaces, five email sources, optional concurrency and proxy pools, SSO risk screening, account persistence, pending recovery, grok2api integration, and CPA/OIDC export.
+Grok Register is a Python-and-Chromium registration automation tool with GUI, CLI, and WebUI interfaces, six email sources, optional concurrency and proxy pools, SSO risk screening, account persistence, pending recovery, grok2api integration, and CPA/OIDC export.
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
@@ -100,7 +100,7 @@ Grok Register uses a real Chromium / Chrome browser to complete the registration
 Key features:
 
 - Automatically opens the registration page, submits an email address, polls for the verification code, fills in profile information, and obtains the SSO cookie.
-- Supports five email sources: **DuckMail / YYDS / Cloudflare temporary email / Cloud Mail / Outlook mailbox pool**.
+- Supports six email sources: **DuckMail / YYDS / Cloudflare temporary email / Cloud Mail / Freemail / Outlook mailbox pool**.
 - Supports three interfaces: **GUI / CLI / WebUI**.
 - Supports optional **1–8 worker concurrent registration**; disabled by default.
 - Supports `direct / single / pool` proxy modes, health checks, cooldowns, subscriptions, fixed/rotating nodes, and stable account-level Proxy Leases.
@@ -256,7 +256,7 @@ The project performs structural validation at startup and checks fields required
 
 | Setting | Description |
 | --- | --- |
-| `email_provider` | `duckmail` / `yyds` / `cloudflare` / `cloudmail` / `outlook` |
+| `email_provider` | `duckmail` / `yyds` / `cloudflare` / `cloudmail` / `freemail` / `outlook` |
 | `register_count` | Number of registrations in the current batch |
 | `enable_nsfw` | Whether to attempt to enable NSFW after registration |
 | `sso_risk_gate_enabled` | Whether to check grok.com `botFlagSource` / `policy=deny` before storage; default `true` |
@@ -378,6 +378,21 @@ Cloud Mail's Public Token is placed directly in the `Authorization` header witho
 After the current registration slot / Proxy Lease is established and before the browser starts, the program checks Cloud Mail authentication through the same network exit. If it receives `401 token validation failed`, it waits about 70 seconds on the same exit for Workers KV convergence; it does not switch proxies, automatically generate a new token, or try alternate authentication formats.
 
 If 401 responses persist after the waiting window, check `cloudmail_api_base`, the Public Token, and whether the KV namespace actually bound to the Cloud Mail Worker belongs to the same deployment instance. Do not repeatedly regenerate tokens. Error logs record only the token length and a short SHA-256 fingerprint, never the full Public Token.
+
+#### Freemail temporary email
+
+Creates a mailbox through a self-hosted freemail service via `/api/generate` and polls the `/api/emails` inbox by email address. `freemail_domain` accepts a bare domain (automatically prefixed with `https://`) or a full http/https URL.
+
+```json
+{
+  "email_provider": "freemail",
+  "freemail_domain": "mail.example.com",
+  "freemail_token": "your Bearer Token"
+}
+```
+
+- Verification codes are extracted from the message subject/body first; the `verification_code` field from the list response is used as a fallback.
+- Message bodies are downloaded as raw EML via `/api/email/{id}/download` and parsed.
 
 ## Proxy & Proxy Pool
 
@@ -553,7 +568,7 @@ Recovery uses file locks, deduplication, and atomic replacement. Repeating the o
 ├── proxy_bridge.py            # HTTP/HTTPS/SOCKS → localhost HTTP proxy bridge and Chromium compatibility
 ├── proxy_protocols.py         # HTTP/SOCKS/VLESS/VMess/Trojan/HY2/TUIC/SS subscription parsing
 ├── proxy_protocol_runtime.py  # Native bridge / sing-box lazy runtime and idle cache
-├── mail_service.py            # Four temporary email services
+├── mail_service.py            # Five temporary email services
 ├── app_config.py              # Default configuration, validation, loading, and saving
 ├── account_outputs.py         # Account, pending, and token outputs
 ├── sso_risk.py                # SSO risk screening and quarantine
